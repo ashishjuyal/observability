@@ -16,7 +16,7 @@ INSTANCE_TYPE="t3.medium"             # 2 vCPU / 4 GB — good for Docker labs
 COURSE_NAME="devsecops"               # Used for tagging and naming resources
 
 # Ports that lab containers expose — opened in the security group
-LAB_PORTS=(3000 8080 8090 9000)
+LAB_PORTS=(3000 8080 8090 9000 9200 9300 5601)
 
 # CIDR allowed to reach the lab ports. "0.0.0.0/0" = open to everyone.
 # Restrict to your training network IP range for better security, e.g. "203.0.113.0/24"
