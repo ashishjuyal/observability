@@ -82,3 +82,11 @@ And then:
 ```
 docker compose version
 ```
+
+## Clone the Observability repository
+
+```bash
+cd $HOME
+git clone https://github.com/ashishjuyal/observability.git
+cd observability
+```
