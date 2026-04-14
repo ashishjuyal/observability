@@ -165,18 +165,31 @@ echo "vm.max_map_count=262144" >> /etc/sysctl.conf
 # Update system
 dnf update -y
 
-# Install Docker
-dnf install -y docker
+# Install Docker and Git
+dnf install -y docker git
 systemctl enable docker
 systemctl start docker
 
 # Allow ec2-user to run docker without sudo
 usermod -aG docker ec2-user
 
-# SSM Session Manager connects as ssm-user. Create it now so the SSM agent
-# reuses this user (with docker group membership) instead of creating a new one.
-useradd -m ssm-user 2>/dev/null || true
-usermod -aG docker ssm-user
+# Grant ssm-user docker access once the SSM agent creates the user on first connect.
+# Do NOT pre-create ssm-user — the SSM agent must create it to set up passwordless sudo.
+echo 'ACTION=="add", USER=="ssm-user", GROUP=="docker", SUBSYSTEM=="", RUN+="/usr/sbin/usermod -aG docker ssm-user"' \
+  > /etc/udev/rules.d/99-ssm-user-docker.rules || true
+# Simpler fallback: add via a one-shot systemd service on first boot after SSM agent runs
+cat <<'EOF' > /etc/rc.d/rc.local
+#!/bin/bash
+# Add ssm-user to docker group once SSM agent creates the account
+for i in $(seq 1 10); do
+  if id ssm-user &>/dev/null; then
+    usermod -aG docker ssm-user
+    break
+  fi
+  sleep 6
+done
+EOF
+chmod +x /etc/rc.d/rc.local
 
 # Install Docker Compose v2 (plugin)
 COMPOSE_VERSION=$(curl -s https://api.github.com/repos/docker/compose/releases/latest \
@@ -193,9 +206,10 @@ ln -sf /usr/local/lib/docker/cli-plugins/docker-compose /usr/local/bin/docker-co
 # git clone https://github.com/your-org/your-lab-repo.git /home/ec2-user/labs
 # chown -R ec2-user:ec2-user /home/ec2-user/labs
 
-echo "Docker setup complete" > /var/log/lab-setup.log
+echo "Lab setup complete" > /var/log/lab-setup.log
 docker --version >> /var/log/lab-setup.log
 docker compose version >> /var/log/lab-setup.log
+git --version >> /var/log/lab-setup.log
 USERDATA
 }
 
