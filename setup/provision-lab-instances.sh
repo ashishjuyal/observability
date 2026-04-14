@@ -173,23 +173,13 @@ systemctl start docker
 # Allow ec2-user to run docker without sudo
 usermod -aG docker ec2-user
 
-# Grant ssm-user docker access once the SSM agent creates the user on first connect.
-# Do NOT pre-create ssm-user — the SSM agent must create it to set up passwordless sudo.
-echo 'ACTION=="add", USER=="ssm-user", GROUP=="docker", SUBSYSTEM=="", RUN+="/usr/sbin/usermod -aG docker ssm-user"' \
-  > /etc/udev/rules.d/99-ssm-user-docker.rules || true
-# Simpler fallback: add via a one-shot systemd service on first boot after SSM agent runs
-cat <<'EOF' > /etc/rc.d/rc.local
-#!/bin/bash
-# Add ssm-user to docker group once SSM agent creates the account
-for i in $(seq 1 10); do
-  if id ssm-user &>/dev/null; then
-    usermod -aG docker ssm-user
-    break
-  fi
-  sleep 6
-done
-EOF
-chmod +x /etc/rc.d/rc.local
+# Pre-create ssm-user so it exists before the SSM agent first connects.
+# Also add the passwordless sudoers entry that the SSM agent would normally create —
+# it skips that step if the user already exists.
+useradd -m ssm-user 2>/dev/null || true
+usermod -aG docker ssm-user
+echo "ssm-user ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/ssm-agent-users
+chmod 440 /etc/sudoers.d/ssm-agent-users
 
 # Install Docker Compose v2 (plugin)
 COMPOSE_VERSION=$(curl -s https://api.github.com/repos/docker/compose/releases/latest \

@@ -66,6 +66,11 @@ This script will automatically create an EC2 instance and install all the necess
 
 When you have Git and Docker installed you should be able to run these commands and get some output:
 
+```bash
+# run the below command to make the docker command work without sudo in your current session
+newgrp docker
+```
+
 ```
 git --version
 ```
